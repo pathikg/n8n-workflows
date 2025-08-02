@@ -1,0 +1,361 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        420,
+        120
+      ],
+      "id": "01b0e065-6b6a-4beb-a559-b8da38e44d1b",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "6Miibx0KzgoFtqku",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -460,
+        -120
+      ],
+      "id": "292f147a-5275-453b-8ba6-f333129f1800",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "E7cqU25r3VRGv0F4",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "thread",
+        "operation": "addLabels",
+        "threadId": "={{ $('Gmail Trigger').item.json.threadId }}",
+        "labelIds": "={{ [ $json.output.label_id ] }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1460,
+        -120
+      ],
+      "id": "6be31fb8-ed99-45b0-be1f-34e27353e049",
+      "name": "Assign Label",
+      "webhookId": "5bea9805-2810-4f2f-a189-551f07e24f53",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "E7cqU25r3VRGv0F4",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"label\": \"Job Openings\",\n    \"label_id\": \"Label_16\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        580,
+        120
+      ],
+      "id": "9e343983-237a-4231-9186-20abe63423df",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "resource": "label",
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -240,
+        -25
+      ],
+      "id": "ba81e984-8d0f-4a34-a75f-ad3279ab83ff",
+      "name": "Gmail Get Labels",
+      "webhookId": "ce74d23d-9daa-4aae-b4a8-3351dc0c47ea",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "E7cqU25r3VRGv0F4",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "label",
+        "operation": "create",
+        "name": "={{ $json.output.label }}",
+        "options": {
+          "labelListVisibility": "labelShow",
+          "messageListVisibility": "show"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1016,
+        -25
+      ],
+      "id": "408ff234-91d0-412c-ab33-f8714be83c1c",
+      "name": "Create Label",
+      "webhookId": "01f83ee1-f32e-42b6-8439-c38aea9d3323",
+      "retryOnFail": false,
+      "alwaysOutputData": false,
+      "executeOnce": true,
+      "notesInFlow": false,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "E7cqU25r3VRGv0F4",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all input items\nconst items = $input.all();\n\n// Transform to just label names\nreturn items.map(item => {\n  return {\n    json: {\n      label: item.json.name, // keep only the name\n      label_id: item.json.label_id\n    },\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1236,
+        -25
+      ],
+      "id": "b2bc1c4f-da70-4e19-b6b0-593c7b2e9800",
+      "name": "Format Name"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect all items from input\nconst allItems = $input.all();\n\n// Map each item to an object with name and id\nconst labelData = allItems.map(item => ({\n  id: item.json.id,\n  name: item.json.name\n}));\n\nreturn [\n  {\n    json: {\n      labelsWithIds: labelData // array of { id, name }\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        -25
+      ],
+      "id": "4ed978ed-9143-48cd-8349-c4eb4dcf5469",
+      "name": "Format Labels"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        200,
+        -100
+      ],
+      "id": "eb51f3be-942c-48c4-8211-affa53a26f24",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ee32ccac-15b5-449c-a38c-1476e5dec8c9",
+              "leftValue": "={{ $(\"Merge\").all()[1].json.labelsWithIds.map(l => l.name) }}",
+              "rightValue": "={{ $json.output.label }}",
+              "operator": {
+                "type": "array",
+                "operation": "contains",
+                "rightType": "any"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        -100
+      ],
+      "id": "1d6865dc-b374-4db4-8d00-345003a23d79",
+      "name": "Label Exists?"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Sender Email:\n{{ $json.From }}\n\nEmail Title:\n{{ $json.Subject }}\n\nEmail Body:\n{{ $json.snippet }} \n\nAll Gmail Labels:\n{{ \n  $(\"Merge\").all()[1].json.labelsWithIds\n    .map(lbl => {\n      const allLabels = $(\"Merge\").all()[1].json.labelsWithIds;\n      const match = allLabels.find(l => l.name === lbl.name);\n      return `${lbl.name} (${match?.id || lbl.id})`;\n    })\n    .join(\"\\n\")\n}}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an intelligent email classifier for Gmail.  \nYour job: Assign the most suitable label from the existing Gmail labels list below or create a new label if none is relevant.  \n\n### Rules:\n1. First, try to match the email to the most relevant existing label (≥80% semantic relevance).  \n2. Prefer labels that are reusable for future similar emails.  \n3. Create a new label only if none are relevant. New label format: `<Source> + <Purpose>`  \n4. Avoid duplicates, overly generic labels, and single-use labels.  \n5. If you create a new label, do **not invent an ID**, leave `label_id` as `\"NEW\"`.  \n\n\n### Output JSON:\n```json\n{\n  \"label\": \"<selected or new label name>\",\n  \"label_id\": \"<existing label id or 'NEW'>\",\n  \"reason\": \"<1-line reasoning>\"\n}\n\n### **Sample Output**\n\n**Case 1: Label Exists**  \n```json\n{\n  \"label\": \"LinkedIn Job Alerts\",\n  \"label_id\": \"Label_1234\",\n  \"reason\": \"Email from LinkedIn with job notifications.\"\n}\n\n**Case 2: Label does not exist\n{\n  \"label\": \"Bank Payment Alerts\",\n  \"label_id\": \"NEW\",\n  \"reason\": \"Payment confirmation email from ICICI Bank.\"\n}\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        420,
+        -100
+      ],
+      "id": "4441efb0-cebe-451b-b464-79ed1bd06e36",
+      "name": "Email Classifier Agent",
+      "retryOnFail": false,
+      "alwaysOutputData": false,
+      "executeOnce": true
+    }
+  ],
+  "connections": {
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Email Classifier Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Gmail Get Labels",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Email Classifier Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Get Labels": {
+      "main": [
+        [
+          {
+            "node": "Format Labels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Label": {
+      "main": [
+        [
+          {
+            "node": "Format Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Name": {
+      "main": [
+        [
+          {
+            "node": "Assign Label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Labels": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Email Classifier Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Label Exists?": {
+      "main": [
+        [
+          {
+            "node": "Assign Label",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Classifier Agent": {
+      "main": [
+        [
+          {
+            "node": "Label Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "692a17374c1e0f4cb431e2f400165385ffb7db1475c4115c60a67df74720b46d"
+  }
+}
